@@ -25,8 +25,12 @@ if __name__ == "__main__":
 import socket
 import sys
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-host = #something
+host = '' #local
 receiver_port = sys.arg[1]
 
 s.bind((host, port))
-s.listen(5) #why is this 5?
+print 'server is waiting for UDP connection'
+while 1:
+  message, client = s.recvfrom(2048)
+  ACK = #something
+  s.sendto(ACK, client)

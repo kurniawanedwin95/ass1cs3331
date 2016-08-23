@@ -15,8 +15,9 @@ receiver_port = sys.arg[2]
 
 s = socket.socket(AF_INET, SOCK_DGRAM)
 try:
-    s.connect((receiver_host_ip, receiver_port))
-    s.recv(1024)
+    message = #something
+    s.sendto(message,(receiver_host_ip, receiver_port))
+    message, client = s.recvfrom(2048) #reads reply
     #handshakes
 except socket.error:
     print 'Could not connect to server, terminating program.\n'
