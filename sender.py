@@ -16,8 +16,9 @@ receiver_port = sys.arg[2]
 s = socket.socket(AF_INET, SOCK_DGRAM)
 try:
     message = #something
-    s.sendto(message,(receiver_host_ip, receiver_port))
-    message, client = s.recvfrom(2048) #reads reply
+    s.sendto(message,(receiver_host_ip, receiver_port)) #sends SYN, can we do seq no?
+    message, client = s.recvfrom(2048) #reads reply, should receive SYN+ACK, buffer size is 2048
+    s.sendto('',(receiver_host_ip, receiver_port)) #sends ACK
     #handshakes
 except socket.error:
     print 'Could not connect to server, terminating program.\n'
