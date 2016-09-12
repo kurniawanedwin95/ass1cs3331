@@ -5,21 +5,35 @@ import socket
 import pickle
 import sys
 
-def readAndResponse(message,client):
-  if(message['SYN'] == True and message['ACK'] == False):
-    print 'SYN received'
-    print message
-    value = {'SYN':True,'ACK':True,'seq_num':message['seq_num']+1,'ack_num':1}
-    message = pickle.dumps(value)
-    s.sendto(message, client)
-    print 'SYN+ACK packet sent'
-  
-  elif(message['SYN'] == False and message['ACK'] == True):
-    print 'ACK Received'
-    print message
+def readAndResponse(s,message,client):
+  if(message['FIN'] == False):
+    if(message['SYN'] == True and message['ACK'] == False):
+      print 'SYN received'
+      print message
+      value = {'SYN':True,'ACK':True,'FIN':False,'seq_num':1,'ack_num':message['seq_num']+1}
+      message = pickle.dumps(value)
+      s.sendto(message, client)
+      print 'SYN+ACK packet sent'
+    
+    elif(message['SYN'] == False and message['ACK'] == True):
+      print 'ACK Received'
+      print message
+      
+    else:
+      print 'Something wrong somewhere'
     
   else:
-    print 'Something wrong somewhere'
+    #Sends ACK and FIN together and closes the program
+    if(message['SYN'] == False and message['ACK'] == False):
+      print 'FIN received'
+      value = {'SYN':False,'ACK':True,'FIN':True,'seq_num':message['ack_num']+1,'ack_num':message['seq_num']+1}
+      message = pickle.dumps(value)
+      s.sendto(message, client)
+      print 'ACK+FIN packet sent'
+      s.close()
+      print 'Connection terminated'
+      sys.exit()
+    
 
 
 if __name__ == '__main__':
@@ -32,6 +46,6 @@ if __name__ == '__main__':
   while 1:
     message, client = s.recvfrom(1024) #buffer size 1kb
     message = pickle.loads(message)
-    readAndResponse(message,client)
+    readAndResponse(s,message,client)
 
   
