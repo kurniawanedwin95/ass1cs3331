@@ -13,6 +13,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   receiver_port = int(sys.argv[2])
   f = open(sys.argv[3],'r') #use read() to read, argument is number of chars
   MSS = int(sys.argv[4])
+  MWS = MSS
   # timeout = int(sys.argv[5])
   # pdrop = int(sys.argv[6])
   # seed = int(sys.argv[7])
@@ -20,11 +21,11 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   # ssthresh = MSS #initial ssthresh value
   
   
-  #UDP packet structure SYN, ACK, FIN, seq_num, ack_num, data, mss
+  #UDP packet structure SYN, ACK, FIN, seq_num, ack_num, data
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   try:
     #3 Way Handshake
-    value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':1,'ack_num':0,'data':'','mss':MSS}
+    value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':0,'ack_num':0,'data':'','mss':MSS}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip, receiver_port)) #sends SYN
     print 'SYN packet sent'
@@ -33,7 +34,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     print 'SYN+ACK received'
     print message
     if(message['SYN'] == True and message['ACK'] == True):
-      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num'],'data':'','mss':MSS}
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num'],'data':''}
       message = pickle.dumps(value)
       s.sendto(message,(receiver_host_ip, receiver_port)) #sends ACK
       print 'ACK packet sent'
@@ -45,7 +46,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
       if chunk == '':
         print 'EOF reached'
         break
-      value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num'],'data':chunk,'mss':MSS}
+      value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num'],'data':chunk}
       message = pickle.dumps(value)
       s.sendto(message,(receiver_host_ip,receiver_port))
       print 'SYN+Data packet sent'
@@ -56,7 +57,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     ###
   
     #3 Way FIN
-    value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num']+1,'ack_num':message['ack_num']+1, 'data':'','mss':MSS}
+    value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num']+1,'ack_num':message['ack_num']+1, 'data':''}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip,receiver_port))
     print 'FIN packet sent'
