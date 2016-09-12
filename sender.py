@@ -30,7 +30,7 @@ try:
   print 'SYN+ACK received'
   print message
   if(message['SYN'] == True and message['ACK'] == True):
-    value = {'SYN':False, 'ACK':True, 'seq_num':message['seq_num']+1, 'ack_num':message['ack_num']}
+    value = {'SYN':False, 'ACK':True, 'seq_num':message['seq_num'], 'ack_num':message['ack_num']}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip, receiver_port)) #sends ACK
     print 'ACK packet sent'
