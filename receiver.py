@@ -35,7 +35,7 @@ def readAndResponse(s,message,client):
 def readData(s,message,client):
   if(message['SYN'] == True and message['ACK'] == False and message['FIN'] == False):
     data = message['data']
-    ack_num = message['seq_num']+1
+    ack_num = message['seq_num']+message['mss']
     value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num']+1,'ack_num':ack_num}
     
     message = pickle.dumps(value)
