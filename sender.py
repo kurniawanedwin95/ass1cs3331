@@ -18,7 +18,7 @@ def beginConnection(s,receiver_host_ip,receiver_port):
     print 'SYN+ACK received'
     print message
     if(message['SYN'] == True and message['ACK'] == True):
-      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num'],'data':''}
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':''}
       message = pickle.dumps(value)
       s.sendto(message,(receiver_host_ip, receiver_port)) #sends ACK
       print 'ACK packet sent'
@@ -27,14 +27,18 @@ def beginConnection(s,receiver_host_ip,receiver_port):
 
 def endConnection(s,message,receiver_host_ip,receiver_port):
   #3 Way FIN
-    value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num']+1,'ack_num':message['ack_num']+1, 'data':''}
+    value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num']+1, 'data':''}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip,receiver_port))
     print 'FIN packet sent'
     message, client = s.recvfrom(1024) #reads SYN+ACK
     message = pickle.loads(message)
     if(message['FIN'] == True and message['ACK'] == True):
-      print 'FIN+ACK received, terminating connection'
+      print 'FIN+ACK received'
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1}
+      message = pickle.dumps(value)
+      s.sendto(message,(receiver_host_ip,receiver_port))
+      print 'ACK packet sent, terminating connection'
       s.close()
       f.close()
       print 'Connection terminated'
@@ -60,7 +64,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   try:
     #3way handshake
     message = beginConnection(s,receiver_host_ip,receiver_port)
-    message['seq_num'] = message['ack_num']
+    message['seq_num'] = message['ack_num']-MSS
       
     #use deque, first in first out for MWS implementation(perhaps)
     #send message here
@@ -101,10 +105,10 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
       if(rec_message['ACK'] == True and rec_message['ack_num'] == value['seq_num']+sent):
         print 'Packet successfully ACKed'
         if EOFFlag == True:
+          message['seq_num'] = rec_message['ack_num']
           finalACK = True
 
     ###
-    
     #3way fin
     endConnection(s,message,receiver_host_ip,receiver_port)
 
