@@ -3,13 +3,14 @@
 #socket implementation
 import socket
 import pickle
+import random
 import sys
 
 def readAndResponse(s,message,client):
   if(message['FIN'] == False):
     if(message['SYN'] == True and message['ACK'] == False):
       print 'SYN received'
-      value = {'SYN':True,'ACK':True,'FIN':False,'seq_num':0,'ack_num':message['seq_num']+1}
+      value = {'SYN':True,'ACK':True,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':message['seq_num']+1,'data':''}
       message = pickle.dumps(value)
       s.sendto(message, client)
       print 'SYN+ACK packet sent'
@@ -24,7 +25,7 @@ def readAndResponse(s,message,client):
     #Sends ACK and FIN together, waits for ACK, and closes the program
     if(message['SYN'] == False and message['ACK'] == False):
       print 'FIN received'
-      value = {'SYN':False,'ACK':True,'FIN':True,'seq_num':message['ack_num']+1,'ack_num':message['seq_num']+1}
+      value = {'SYN':False,'ACK':True,'FIN':True,'seq_num':message['ack_num']+1,'ack_num':message['seq_num']+1,'data':''}
       message = pickle.dumps(value)
       s.sendto(message, client)
       print 'ACK+FIN packet sent'
@@ -38,13 +39,12 @@ def readData(s,message,client):
   if(message['SYN'] == True and message['ACK'] == False and message['FIN'] == False):
     data = message['data']
     ack_num = message['seq_num']+len(message['data'])
-    print 'Ack_num is: %d',ack_num
-    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':ack_num}
+    print 'Ack_num is:',ack_num
+    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':ack_num,'data':''}
     message = pickle.dumps(value)
     s.sendto(message, client)
     print 'ACK packet sent'
-    print 'ACK num:', ack_num
-    
+
   else:
     data = ''
   return data
