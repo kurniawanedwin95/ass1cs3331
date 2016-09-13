@@ -74,9 +74,12 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     #send message here
     while 1:
       sent = 0
-      ##data reading module---------------------------------------------
-      for i in range(0,MWS):
-        if EOFFlag == False:
+      read = 0
+      data = []
+      if EOFFlag == False:
+        
+        ##data reading module---------------------------------------------
+        for i in range(0,MWS):
           chunk = f.read(MSS)
           
           if chunk == '':
@@ -84,10 +87,15 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
             print 'EOF reached'
             EOFFlag = True
             break
-          ##-------------------------------------------------------------
           
-          ##data sending module------------------------------------------
-          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':message['seq_num']+MSS,'ack_num':message['seq_num'],'data':chunk}
+          data.append(chunk)
+          read += 1
+        ##-------------------------------------------------------------
+          
+        ##data sending module------------------------------------------
+        #might implement something like while sent < read
+        for k in range(0,read):
+          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':message['seq_num']+MSS,'ack_num':message['seq_num'],'data':data[k]}
           print value['seq_num']
           message = pickle.dumps(value)
           
@@ -96,16 +104,14 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
             sent += 1
             print 'SYN+Data packet sent'
           else:
+            #PLD module in action
             print 'packet dropped'
           message = pickle.loads(message)
-          ##--------------------------------------------------------------
-          
-        else:
+        ##--------------------------------------------------------------
+        
+      else:
           break
-      
-      if (EOFFlag == True and finalACK == True):
-        break
-      
+
       for k in range(0,sent):
         #checks acks with the same amount of undropped packets
         rec_message,client = s.recvfrom(1024)
@@ -119,7 +125,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
         print 'Packet successfully ACKed'
         if EOFFlag == True:
           message['seq_num'] = rec_message['ack_num']
-          finalACK = True
+          break
 
     ###
     #3way fin
