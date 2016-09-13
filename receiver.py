@@ -36,12 +36,13 @@ def readData(s,message,client):
   if(message['SYN'] == True and message['ACK'] == False and message['FIN'] == False):
     data = message['data']
     ack_num = message['seq_num']+len(message['data'])
+    print 'Ack_num is: %d',ack_num
     value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num']+1,'ack_num':ack_num}
     
     message = pickle.dumps(value)
     s.sendto(message, client)
     print 'ACK packet sent'
-    print 'ACK num: %d', ack_num
+    print 'ACK num:', ack_num
   else:
     data = ''
   return data
