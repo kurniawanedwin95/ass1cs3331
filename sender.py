@@ -10,7 +10,8 @@ import time
 def beginConnection(s,receiver_host_ip,receiver_port):
   
   #3 Way Handshake
-  value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':'','mss':MSS}
+  # value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':'','mss':MSS,'end_seq_num':0}
+  value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':0,'ack_num':0,'data':'','mss':MSS,'end_seq_num':0} #debug mode
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip, receiver_port)) #sends SYN
   print 'SYN packet sent'
@@ -19,7 +20,7 @@ def beginConnection(s,receiver_host_ip,receiver_port):
   print 'SYN+ACK received'
   print message
   if(message['SYN'] == True and message['ACK'] == True):
-    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':''}
+    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':'','end_seq_num':0}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip, receiver_port)) #sends ACK
     print 'ACK packet sent'
@@ -43,7 +44,7 @@ def fileRead(seq_num,MSS,f):
 
 def endConnection(s,message,receiver_host_ip,receiver_port):
   #3 Way FIN
-  value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num']+1, 'data':''}
+  value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num']+1, 'data':'','end_seq_num':0}
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip,receiver_port))
   print 'FIN packet sent',value['seq_num']
@@ -51,7 +52,7 @@ def endConnection(s,message,receiver_host_ip,receiver_port):
   message = pickle.loads(message)
   if(message['FIN'] == True and message['ACK'] == True):
     print 'FIN+ACK received'
-    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1}
+    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'end_seq_num':0}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip,receiver_port))
     print 'ACK packet sent, terminating connection'
@@ -79,7 +80,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   data = {}
   allSent = False
   random.seed(seed)
-  #UDP packet structure SYN, ACK, FIN, seq_num, ack_num, data
+  #UDP packet structure SYN, ACK, FIN, seq_num, ack_num, data, end_seq_num
   
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   try:
@@ -87,13 +88,13 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     message = beginConnection(s,receiver_host_ip,receiver_port)
     
     #initiate correct seq_num
-    message['seq_num'] -= MSS
     start_seq_num = message['seq_num']
     print message['seq_num']
 
     #send message here
     while goToFin == False:
       sent = 0
+      firstSent = False
       ##data reading module------------------------------------------
       if EOFFlag == False:
         data, size = fileRead(start_seq_num,MSS,f)
@@ -109,16 +110,20 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
         sequence = start_seq_num+multiplier
         
         if sequence < end_seq_num and allSent == False:
-          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':message['seq_num'],'data':data[sequence]}
+          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':message['seq_num'],'data':data[sequence],'end_seq_num':end_seq_num}
           message = pickle.dumps(value)
           
           if random.random() > pdrop:
+            if i == 0:
+              firstSent = True
             s.sendto(message,(receiver_host_ip,receiver_port))
             sent += 1
             print 'SYN+Data packet sent, seq_num is:',value['seq_num']
           else:
+            if i == 0:
+              firstSent = False
             #PLD module in action
-            print 'packet dropped'
+            print 'packet dropped, seq_num is:',value['seq_num']
           message = pickle.loads(message)
           
         else:
@@ -127,33 +132,38 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
           break
       ##--------------------------------------------------------------
       
+      ##ACK checking module-------------------------------------------
       for j in range(0,sent):
         #checks acks with the same amount of undropped packets
         rec_message,client = s.recvfrom(1024)
         rec_message = pickle.loads(rec_message)
+        
+        #final data handling
         if allSent == True:
           print rec_message
-        #final data handling
         if rec_message['ack_num'] == end_seq_num:
           diff = sent-len(value['data'])
           final_size = sent-diff
         else:
           final_size = MSS
-        if (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num):
+        
+        print rec_message['ack_num']
+        print start_seq_num+final_size
+        if (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
           print 'packet',start_seq_num,'successfully ACKed'
           start_seq_num += final_size
           print 'start_seq_num updated to:',start_seq_num
         ##final packet
-        elif (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num):
+        elif (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
           print 'final packet',start_seq_num,'successfully ACKed'
           start_seq_num += final_size
           print 'start_seq_num updated to:',start_seq_num
           goToFin = True
           break
         else:
-          print 'whyamihere'
+          print 'this leads to retransmit'
           #retransmit
-          break
+      ##--------------------------------------------------------------------
     
     message['seq_num'] = start_seq_num
     #3way fin

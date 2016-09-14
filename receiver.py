@@ -10,14 +10,15 @@ def readAndResponse(s,message,client):
   if(message['FIN'] == False):
     if(message['SYN'] == True and message['ACK'] == False):
       print 'SYN received'
-      value = {'SYN':True,'ACK':True,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':message['seq_num']+1,'data':''}
+      # value = {'SYN':True,'ACK':True,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':message['seq_num']+1,'data':''}
+      value = {'SYN':True,'ACK':True,'FIN':False,'seq_num':0,'ack_num':message['seq_num']+1,'data':''}
       message = pickle.dumps(value)
       s.sendto(message, client)
       print 'SYN+ACK packet sent'
-    
+      message = pickle.loads(message)
     elif(message['SYN'] == False and message['ACK'] == True):
-      print 'ACK Received'
-
+      print 'ACK Received, seq num is', message['seq_num']
+      return message['seq_num']
     else:
       print 'Something wrong somewhere'
     
@@ -35,19 +36,29 @@ def readAndResponse(s,message,client):
       print 'Connection terminated'
       sys.exit()
 
-def readData(s,message,client):
+def readData(s,expected_seq_num,message,client):
   if(message['SYN'] == True and message['ACK'] == False and message['FIN'] == False):
-    data = message['data']
-    ack_num = message['seq_num']+len(message['data'])
-    print 'Ack_num is:',ack_num
-    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':ack_num,'data':''}
-    message = pickle.dumps(value)
-    s.sendto(message, client)
-    print 'ACK packet sent'
-
+    
+    if(message['seq_num'] == expected_seq_num):
+      #ACKed properly
+      data = message['data']
+      ack_num = message['seq_num']+len(message['data'])
+      expected_seq_num = ack_num
+      print 'expected next seq num is:',ack_num
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':ack_num,'data':''}
+      message = pickle.dumps(value)
+      s.sendto(message, client)
+      print 'ACK packet sent'
+      return expected_seq_num
+    else:
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':expected_seq_num,'data':''}
+      message = pickle.dumps(value)
+      s.sendto(message, client)
+      print 'Improper ACK, expected seq_num:',expected_seq_num
+      return expected_seq_num
   else:
-    data = ''
-  return data
+    print 'Something is wrong'
+    return expected_seq_num
 
 if __name__ == '__main__':
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -57,11 +68,11 @@ if __name__ == '__main__':
   print 'server is waiting for UDP connection'
   data = ''
   while 1:
-    message, client = s.recvfrom(1024) #buffer size 1kb
-    message = pickle.loads(message)
-    if message['data'] == '':
-      readAndResponse(s,message,client)
+    rec_message, client = s.recvfrom(1024) #buffer size 1kb
+    rec_message = pickle.loads(rec_message)
+    if rec_message['data'] == '':
+      expected_seq_num = readAndResponse(s,rec_message,client)
     else:
-      data += readData(s,message,client)
+      expected_seq_num = readData(s,expected_seq_num,rec_message,client)
   
   
