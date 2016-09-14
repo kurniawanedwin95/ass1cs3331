@@ -25,13 +25,28 @@ def beginConnection(s,receiver_host_ip,receiver_port):
     print 'ACK packet sent'
     message = pickle.loads(message)
     return message
+    
+def fileRead(seq_num,MSS,f):
+  EOFFlag = False
+  size = 0
+  while EOFFlag == False:
+    chunk = f.read(MSS)
+    size += len(chunk)
+    if chunk == '':
+      #reached EOF
+      print 'EOF reached'
+      EOFFlag = True
+      break
+    data[seq_num] = chunk
+    seq_num += MSS
+  return data, size
 
 def endConnection(s,message,receiver_host_ip,receiver_port):
   #3 Way FIN
   value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num']+1, 'data':''}
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip,receiver_port))
-  print 'FIN packet sent'
+  print 'FIN packet sent',value['seq_num']
   message, client = s.recvfrom(1024) #reads SYN+ACK
   message = pickle.loads(message)
   if(message['FIN'] == True and message['ACK'] == True):
@@ -60,6 +75,9 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   message = '' #initialise message
   EOFFlag = False
   finalACK = False
+  goToFin = False
+  data = {}
+  allSent = False
   random.seed(seed)
   #UDP packet structure SYN, ACK, FIN, seq_num, ack_num, data
   
@@ -68,66 +86,76 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     #3way handshake
     message = beginConnection(s,receiver_host_ip,receiver_port)
     
-    message['seq_num'] -= MSS #initiate correct seq_num
+    #initiate correct seq_num
+    message['seq_num'] -= MSS
+    start_seq_num = message['seq_num']
     print message['seq_num']
-    #use deque, first in first out for MWS implementation(perhaps)
+
     #send message here
-    while 1:
+    while goToFin == False:
       sent = 0
-      read = 0
-      data = []
+      ##data reading module------------------------------------------
       if EOFFlag == False:
+        data, size = fileRead(start_seq_num,MSS,f)
+        print data
+        end_seq_num = size+start_seq_num
+        print end_seq_num
+        EOFFlag = True
+      ##-------------------------------------------------------------
+      
+      ##data sending module------------------------------------------
+      for i in range(0,MWS):#this is basically the window
+        multiplier = i*MSS
+        sequence = start_seq_num+multiplier
         
-        ##data reading module---------------------------------------------
-        for i in range(0,MWS):
-          chunk = f.read(MSS)
-          
-          if chunk == '':
-            #reached EOF
-            print 'EOF reached'
-            EOFFlag = True
-            break
-          
-          data.append(chunk)
-          read += 1
-        ##-------------------------------------------------------------
-          
-        ##data sending module------------------------------------------
-        #might implement something like while sent < read
-        for k in range(0,read):
-          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':message['seq_num']+MSS,'ack_num':message['seq_num'],'data':data[k]}
-          print value['seq_num']
+        if sequence < end_seq_num and allSent == False:
+          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':message['seq_num'],'data':data[sequence]}
           message = pickle.dumps(value)
           
           if random.random() > pdrop:
             s.sendto(message,(receiver_host_ip,receiver_port))
             sent += 1
-            print 'SYN+Data packet sent'
+            print 'SYN+Data packet sent, seq_num is:',value['seq_num']
           else:
             #PLD module in action
             print 'packet dropped'
           message = pickle.loads(message)
-        ##--------------------------------------------------------------
-        
-      else:
+          
+        else:
+          print 'all packet sent'
+          allSent = True
           break
-
-      for k in range(0,sent):
+      ##--------------------------------------------------------------
+      
+      for j in range(0,sent):
         #checks acks with the same amount of undropped packets
         rec_message,client = s.recvfrom(1024)
         rec_message = pickle.loads(rec_message)
-      
-      #final data handling
-      diff = sent-len(value['data'])
-      sent = sent-diff
-      
-      if(rec_message['ACK'] == True and rec_message['ack_num'] == value['seq_num']+sent):
-        print 'Packet successfully ACKed'
-        if EOFFlag == True:
-          message['seq_num'] = rec_message['ack_num']
+        if allSent == True:
+          print rec_message
+        #final data handling
+        if rec_message['ack_num'] == end_seq_num:
+          diff = sent-len(value['data'])
+          final_size = sent-diff
+        else:
+          final_size = MSS
+        if (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num):
+          print 'packet',start_seq_num,'successfully ACKed'
+          start_seq_num += final_size
+          print 'start_seq_num updated to:',start_seq_num
+        ##final packet
+        elif (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num):
+          print 'final packet',start_seq_num,'successfully ACKed'
+          start_seq_num += final_size
+          print 'start_seq_num updated to:',start_seq_num
+          goToFin = True
           break
-
-    ###
+        else:
+          print 'whyamihere'
+          #retransmit
+          break
+    
+    message['seq_num'] = start_seq_num
     #3way fin
     endConnection(s,message,receiver_host_ip,receiver_port)
 
