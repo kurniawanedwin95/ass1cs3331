@@ -44,10 +44,10 @@ def fileRead(seq_num,MSS,f):
 
 def endConnection(s,message,receiver_host_ip,receiver_port):
   #3 Way FIN
-  value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num']+1, 'data':'','end_seq_num':0}
+  value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num'], 'data':'','end_seq_num':0}
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip,receiver_port))
-  print 'FIN packet sent',value['seq_num']
+  print 'FIN packet sent',value['seq_num'], value['ack_num']
   message, client = s.recvfrom(1024) #reads SYN+ACK
   message = pickle.loads(message)
   if(message['FIN'] == True and message['ACK'] == True):
@@ -87,6 +87,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     
     #initiate correct seq_num
     start_seq_num = message['seq_num']
+    sender_ack_num = message['ack_num']
     print message['seq_num']
 
     #send message here
@@ -108,7 +109,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
         sequence = start_seq_num+multiplier
         
         if sequence < end_seq_num and allSent == False:
-          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':message['seq_num'],'data':data[sequence],'end_seq_num':end_seq_num}
+          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':sender_ack_num,'data':data[sequence],'end_seq_num':end_seq_num}
           message = pickle.dumps(value)
           
           if random.random() > pdrop:

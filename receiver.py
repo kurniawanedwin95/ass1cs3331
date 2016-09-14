@@ -17,7 +17,7 @@ def readAndResponse(f,s,message,client):
       print 'SYN+ACK packet sent'
       message = pickle.loads(message)
     elif(message['SYN'] == False and message['ACK'] == True):
-      print 'ACK Received, seq num is', message['seq_num']
+      print 'ACK Received, seq num is', message['seq_num'],'ack num is',message['ack_num']
       return message['seq_num']
     else:
       print 'Something wrong somewhere'
@@ -31,6 +31,7 @@ def readAndResponse(f,s,message,client):
       s.sendto(message, client)
       print 'ACK+FIN packet sent'
       message, client = s.recvfrom(1024)
+      message = pickle.loads(message)
       print 'ACK received, terminating connection'
       s.close()
       f.close()
@@ -39,7 +40,6 @@ def readAndResponse(f,s,message,client):
 
 def readData(f,s,expected_seq_num,dataBuffer,message,client):
   if(message['SYN'] == True and message['ACK'] == False and message['FIN'] == False):
-    
     if(message['seq_num'] == expected_seq_num):
       #ACKed properly
       data = message['data']
@@ -78,6 +78,8 @@ if __name__ == '__main__':
   s.bind((host, receiver_port))
   print 'server is waiting for UDP connection'
   dataBuffer = {}
+  f = open('file.txt','w')#cleans file of previous content
+  f.close()
   f = open('file.txt','a')
   while 1:
     rec_message, client = s.recvfrom(1024) #buffer size 1kb
