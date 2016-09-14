@@ -6,7 +6,7 @@ import pickle
 import random
 import sys
 
-def readAndResponse(s,message,client):
+def readAndResponse(f,s,message,client):
   if(message['FIN'] == False):
     if(message['SYN'] == True and message['ACK'] == False):
       print 'SYN received'
@@ -33,15 +33,23 @@ def readAndResponse(s,message,client):
       message, client = s.recvfrom(1024)
       print 'ACK received, terminating connection'
       s.close()
+      f.close()
       print 'Connection terminated'
       sys.exit()
 
-def readData(s,expected_seq_num,message,client):
+def readData(f,s,expected_seq_num,dataBuffer,message,client):
   if(message['SYN'] == True and message['ACK'] == False and message['FIN'] == False):
     
     if(message['seq_num'] == expected_seq_num):
       #ACKed properly
       data = message['data']
+      
+      #Reads from buffer if data exists in buffer
+      if(dataBuffer.get(message['seq_num']) == None):
+        f.write(data)
+      else:
+        f.write(dataBuffer.pop(message['seq_num'],None))
+      
       ack_num = message['seq_num']+len(message['data'])
       expected_seq_num = ack_num
       print 'expected next seq num is:',ack_num
@@ -49,16 +57,19 @@ def readData(s,expected_seq_num,message,client):
       message = pickle.dumps(value)
       s.sendto(message, client)
       print 'ACK packet sent'
-      return expected_seq_num
+      return dataBuffer,expected_seq_num
+      
     else:
+      #Improper packet
+      dataBuffer[message['seq_num']] = message['data']
       value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':expected_seq_num,'data':''}
       message = pickle.dumps(value)
       s.sendto(message, client)
       print 'Improper ACK, expected seq_num:',expected_seq_num
-      return expected_seq_num
+      return dataBuffer,expected_seq_num
   else:
     print 'Something is wrong'
-    return expected_seq_num
+    return dataBuffer,expected_seq_num
 
 if __name__ == '__main__':
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -66,13 +77,14 @@ if __name__ == '__main__':
   receiver_port = int(sys.argv[1])
   s.bind((host, receiver_port))
   print 'server is waiting for UDP connection'
-  data = ''
+  dataBuffer = {}
+  f = open('file.txt','a')
   while 1:
     rec_message, client = s.recvfrom(1024) #buffer size 1kb
     rec_message = pickle.loads(rec_message)
     if rec_message['data'] == '':
-      expected_seq_num = readAndResponse(s,rec_message,client)
+      expected_seq_num = readAndResponse(f,s,rec_message,client)
     else:
-      expected_seq_num = readData(s,expected_seq_num,rec_message,client)
+      dataBuffer,expected_seq_num = readData(f,s,expected_seq_num,dataBuffer,rec_message,client)
   
   

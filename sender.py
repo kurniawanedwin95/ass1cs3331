@@ -71,8 +71,6 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   pdrop = float(sys.argv[6])
   seed = int(sys.argv[7])
 
-  cwnd = 1
-  # ssthresh = MSS #initial ssthresh value
   message = '' #initialise message
   EOFFlag = False
   finalACK = False
