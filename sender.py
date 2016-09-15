@@ -109,7 +109,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   f = open(sys.argv[3],'r') #use read() to read, argument is number of chars
   MSS = int(sys.argv[4])
   MWS = MSS
-  timeout = int(sys.argv[5])
+  timeout = float(sys.argv[5])/1000
   pdrop = float(sys.argv[6])
   seed = int(sys.argv[7])
   
@@ -150,10 +150,10 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
       ##-------------------------------------------------------------
       
       ##data sending module------------------------------------------
-      for i in range(0,MWS):#this is basically the window
+      # for i in range(0,MWS):#inbetween comp and mechatronics version
+      for i in range(0,1):#mechatronics version
         multiplier = i*MSS
         sequence = start_seq_num+multiplier
-        print 'sequence',sequence
         if sequence < end_seq_num and allSent == False:
           value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':sender_ack_num,'data':data[sequence],'end_seq_num':end_seq_num}
           message = pickle.dumps(value)
@@ -190,42 +190,52 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
       ##--------------------------------------------------------------
       
       ##ACK checking module-------------------------------------------
-      for j in range(0,sent):
+      # for j in range(0,sent):#inbetween comp and mechatronics version
+      for j in range(0,1):#mechatronics version
         #checks acks with the same amount of undropped packets
-        rec_message,client = s.recvfrom(1024)
-        rec_message = pickle.loads(rec_message)
-        #log writing chunk--------------------------------------------
-        curtime = time.time()*1000
-        curtime = curtime-starttime
-        string = 'rcv\t'+str(curtime)+'\tA\t'+str(rec_message['seq_num'])+'\t'+str(len(rec_message['data']))+'\t'+str(rec_message['ack_num'])+'\n'
-        log.write(string)
-        #-------------------------------------------------------------
-        #final data handling
-        if allSent == True:
-          print rec_message
-        if rec_message['ack_num'] == end_seq_num:
-          diff = sent-len(value['data'])
-          final_size = sent-diff
-        else:
-          final_size = MSS
+        #added bit------
+        s.settimeout(timeout)
+        #---------------
+        try:
+          rec_message,client = s.recvfrom(1024)
+          rec_message = pickle.loads(rec_message)
+          #log writing chunk--------------------------------------------
+          curtime = time.time()*1000
+          curtime = curtime-starttime
+          string = 'rcv\t'+str(curtime)+'\tA\t'+str(rec_message['seq_num'])+'\t'+str(len(rec_message['data']))+'\t'+str(rec_message['ack_num'])+'\n'
+          log.write(string)
+          #-------------------------------------------------------------
+          #final data handling
+          if allSent == True:
+            print rec_message
+          if rec_message['ack_num'] == end_seq_num:
+            diff = sent-len(value['data'])
+            final_size = sent-diff
+          else:
+            final_size = MSS
+          
+          print rec_message['ack_num']
+          print start_seq_num+final_size
+          if (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
+            print 'packet',start_seq_num,'successfully ACKed'
+            start_seq_num = rec_message['ack_num']
+            print 'start_seq_num updated to:',start_seq_num
+          ##final packet
+          elif (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
+            print 'final packet',start_seq_num,'successfully ACKed'
+            start_seq_num = rec_message['ack_num']
+            print 'final start_seq_num updated to:',start_seq_num
+            goToFin = True
+            break
+          else:
+            allSent = False
+            print 'this leads to retransmit'
+            #retransmit
         
-        print rec_message['ack_num']
-        print start_seq_num+final_size
-        if (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
-          print 'packet',start_seq_num,'successfully ACKed'
-          start_seq_num = rec_message['ack_num']
-          print 'start_seq_num updated to:',start_seq_num
-        ##final packet
-        elif (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
-          print 'final packet',start_seq_num,'successfully ACKed'
-          start_seq_num = rec_message['ack_num']
-          print 'final start_seq_num updated to:',start_seq_num
-          goToFin = True
-          break
-        else:
+        except socket.timeout:
           allSent = False
-          print 'this leads to retransmit'
-          #retransmit
+          print 'retransmit due to timeout'
+          
       ##--------------------------------------------------------------------
     
     message['seq_num'] = start_seq_num

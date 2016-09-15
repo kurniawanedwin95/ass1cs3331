@@ -35,6 +35,7 @@ def readAndResponse(f,s,message,client):
       print 'ACK received, terminating connection'
       s.close()
       f.close()
+      f2.close()
       print 'Connection terminated'
       sys.exit()
 
@@ -86,6 +87,9 @@ if __name__ == '__main__':
   f = open(filename,'w')#cleans file of previous content
   f.close()
   f = open(filename,'a')
+  f2 = open('Receiver_log.txt','w')#cleans file of previous content
+  f2.close()
+  f2 = open('Receiver_log.txt','a')
   while 1:
     rec_message, client = s.recvfrom(1024) #buffer size 1kb
     rec_message = pickle.loads(rec_message)
