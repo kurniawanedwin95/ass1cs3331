@@ -1,0 +1,3 @@
+Amount of data received: 1593 bytes
+Number of data segmentes received: 133
+Number of duplicate segments received: 0

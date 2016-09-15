@@ -1,14 +1,12 @@
 #!usr/bin/python
-
+# python sender.py localhost 20000 test1.txt 12 - command for easy debugging
 import socket
 import pickle
 import random
 import sys
 import time
-#implement retransmit
 
 def beginConnection(log,starttime,s,receiver_host_ip,receiver_port):
-  
   #3 Way Handshake
   # value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':'','mss':MSS,'end_seq_num':0}
   value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':0,'ack_num':0,'data':'','mss':MSS,'end_seq_num':0} #debug mode
