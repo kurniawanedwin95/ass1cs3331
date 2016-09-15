@@ -8,7 +8,7 @@ import time
 
 def beginConnection(log,starttime,s,receiver_host_ip,receiver_port):
   #3 Way Handshake
-  value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':'','mss':MSS,'end_seq_num':0}
+  value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':''}
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip, receiver_port)) #sends SYN
   #log writing chunk--------------------------------------------
@@ -28,7 +28,7 @@ def beginConnection(log,starttime,s,receiver_host_ip,receiver_port):
   #-------------------------------------------------------------
   print 'SYN+ACK received'
   if(message['SYN'] == True and message['ACK'] == True):
-    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':'','end_seq_num':0}
+    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':''}
     message = pickle.dumps(value)
     s.sendto(message,(receiver_host_ip, receiver_port)) #sends ACK
     #log writing chunk--------------------------------------------
@@ -57,7 +57,7 @@ def fileRead(seq_num,MSS,f):
 
 def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port,totalData,totalSegment,totalDropped,totalRetransmit,totalDuplicate):
   #3 Way FIN
-  value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num'], 'data':'','end_seq_num':0}
+  value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num'], 'data':''}
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip,receiver_port))
   #log writing chunk--------------------------------------------
@@ -79,7 +79,7 @@ def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port,totalDa
       log.write(string)
       #-------------------------------------------------------------
       print 'FIN+ACK received'
-      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':'','end_seq_num':0}
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':''}
       message = pickle.dumps(value)
       s.sendto(message,(receiver_host_ip,receiver_port))
       #log writing chunk--------------------------------------------
@@ -167,7 +167,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
         multiplier = i*MSS
         sequence = start_seq_num+multiplier
         if sequence < end_seq_num and allSent == False:
-          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':sender_ack_num,'data':data[sequence],'end_seq_num':end_seq_num}
+          value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':sender_ack_num,'data':data[sequence]}
           message = pickle.dumps(value)
           
           if random.random() > pdrop:
