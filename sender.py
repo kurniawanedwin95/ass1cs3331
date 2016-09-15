@@ -149,7 +149,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
       for i in range(0,MWS):#this is basically the window
         multiplier = i*MSS
         sequence = start_seq_num+multiplier
-        
+        print 'sequence',sequence
         if sequence < end_seq_num and allSent == False:
           value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':sequence,'ack_num':sender_ack_num,'data':data[sequence],'end_seq_num':end_seq_num}
           message = pickle.dumps(value)
@@ -209,16 +209,17 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
         print start_seq_num+final_size
         if (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
           print 'packet',start_seq_num,'successfully ACKed'
-          start_seq_num += final_size
+          start_seq_num = rec_message['ack_num']
           print 'start_seq_num updated to:',start_seq_num
         ##final packet
         elif (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
           print 'final packet',start_seq_num,'successfully ACKed'
-          start_seq_num += final_size
-          print 'start_seq_num updated to:',start_seq_num
+          start_seq_num = rec_message['ack_num']
+          print 'final start_seq_num updated to:',start_seq_num
           goToFin = True
           break
         else:
+          allSent = False
           print 'this leads to retransmit'
           #retransmit
       ##--------------------------------------------------------------------

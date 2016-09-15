@@ -75,12 +75,13 @@ if __name__ == '__main__':
   s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   host = '' #local
   receiver_port = int(sys.argv[1])
+  filename = sys.argv[2]
   s.bind((host, receiver_port))
   print 'server is waiting for UDP connection'
   dataBuffer = {}
-  f = open('file.txt','w')#cleans file of previous content
+  f = open(filename,'w')#cleans file of previous content
   f.close()
-  f = open('file.txt','a')
+  f = open(filename,'a')
   while 1:
     rec_message, client = s.recvfrom(1024) #buffer size 1kb
     rec_message = pickle.loads(rec_message)
