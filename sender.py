@@ -8,8 +8,7 @@ import time
 
 def beginConnection(log,starttime,s,receiver_host_ip,receiver_port):
   #3 Way Handshake
-  # value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':'','mss':MSS,'end_seq_num':0}
-  value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':0,'ack_num':0,'data':'','mss':MSS,'end_seq_num':0} #debug mode
+  value = {'SYN':True,'ACK':False,'FIN':False,'seq_num':random.randint(0,10000),'ack_num':0,'data':'','mss':MSS,'end_seq_num':0}
   message = pickle.dumps(value)
   s.sendto(message,(receiver_host_ip, receiver_port)) #sends SYN
   #log writing chunk--------------------------------------------
@@ -28,7 +27,6 @@ def beginConnection(log,starttime,s,receiver_host_ip,receiver_port):
   log.write(string)
   #-------------------------------------------------------------
   print 'SYN+ACK received'
-  print message
   if(message['SYN'] == True and message['ACK'] == True):
     value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':'','end_seq_num':0}
     message = pickle.dumps(value)
@@ -51,14 +49,13 @@ def fileRead(seq_num,MSS,f):
     size += len(chunk)
     if chunk == '':
       #reached EOF
-      print 'EOF reached'
       EOFFlag = True
       break
     data[seq_num] = chunk
     seq_num += MSS
   return data, size
 
-def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port):
+def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port,totalData,totalSegment,totalDropped,totalRetransmit,totalDuplicate):
   #3 Way FIN
   value = {'SYN':False,'ACK':False,'FIN':True,'seq_num':message['seq_num'],'ack_num':message['ack_num'], 'data':'','end_seq_num':0}
   message = pickle.dumps(value)
@@ -69,7 +66,7 @@ def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port):
   string = 'snd\t'+str(curtime)+'\tF\t'+str(value['seq_num'])+'\t'+str(len(value['data']))+'\t'+str(value['ack_num'])+'\n'
   log.write(string)
   #-------------------------------------------------------------
-  print 'FIN packet sent',value['seq_num'], value['ack_num']
+  print 'FIN packet sent'
   while 1:
     #empties the buffer until it finds the FIN ACK packet and quits
     message, client = s.recvfrom(1024) #reads SYN+ACK
@@ -92,8 +89,23 @@ def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port):
       log.write(string)
       #-------------------------------------------------------------
       print 'ACK packet sent, terminating connection'
+      #log endnote writing chunk------------------------------------
+      lines = '---------------------------------------------------------------\n'
+      datasize = 'Amount of data transferred: '+str(totalData)+' bytes\n'
+      segmentnum = 'Number of data segments sent: '+str(totalSegment)+'\n'
+      droppednum = 'Number of packets dropped: '+str(totalDropped)+'\n'
+      retransmitnum = 'Number of retransmitted segments: '+str(totalRetransmit)+'\n'
+      duplicatenum = 'Number of duplicate acknowledgements: '+str(totalDuplicate)+'\n'
+      log.write(lines)
+      log.write(datasize)
+      log.write(segmentnum)
+      log.write(droppednum)
+      log.write(retransmitnum)
+      log.write(duplicatenum)
+      #-------------------------------------------------------------
       s.close()
       f.close()
+      log.close()
       sys.exit()
       print 'Connection terminated'
   
@@ -118,9 +130,14 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
   goToFin = False
   data = {}
   allSent = False
-  log = open('log.txt','w')#cleans file of previous content
+  totalData = 0
+  totalSegment = 0
+  totalDropped = 0
+  totalRetransmit = 0
+  totalDuplicate = 0
+  log = open('Sender_log.txt','w')#cleans file of previous content
   log.close()
-  log = open('log.txt','a')
+  log = open('Sender_log.txt','a')
   random.seed(seed)
   #UDP packet structure SYN, ACK, FIN, seq_num, ack_num, data, end_seq_num
   
@@ -132,7 +149,6 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
     #initiate correct seq_num
     start_seq_num = message['seq_num']
     sender_ack_num = message['ack_num']
-    print message['seq_num']
 
     #send message here
     while goToFin == False:
@@ -141,9 +157,7 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
       ##data reading module------------------------------------------
       if EOFFlag == False:
         data, size = fileRead(start_seq_num,MSS,f)
-        print data
         end_seq_num = size+start_seq_num
-        print end_seq_num
         EOFFlag = True
       ##-------------------------------------------------------------
       
@@ -160,6 +174,8 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
             if i == 0:
               firstSent = True
             s.sendto(message,(receiver_host_ip,receiver_port))
+            totalData += len(value['data'])
+            totalSegment += 1
             sent += 1
             #log writing chunk--------------------------------------------
             curtime = time.time()*1000
@@ -167,18 +183,17 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
             string = 'snd\t'+str(curtime)+'\tD\t'+str(value['seq_num'])+'\t'+str(len(value['data']))+'\t'+str(value['ack_num'])+'\n'
             log.write(string)
             #-------------------------------------------------------------
-            print 'SYN+Data packet sent, seq_num is:',value['seq_num']
           else:
             if i == 0:
               firstSent = False
             #PLD module in action
+            totalDropped += 1
             #log writing chunk--------------------------------------------
             curtime = time.time()*1000
             curtime = curtime-starttime
             string = 'drop\t'+str(curtime)+'\tD\t'+str(value['seq_num'])+'\t'+str(len(value['data']))+'\t'+str(value['ack_num'])+'\n'
             log.write(string)
             #-------------------------------------------------------------
-            print 'packet dropped, seq_num is:',value['seq_num']
           message = pickle.loads(message)
           
         else:
@@ -212,33 +227,30 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
           else:
             final_size = MSS
           
-          print rec_message['ack_num']
-          print start_seq_num+final_size
           if (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
-            print 'packet',start_seq_num,'successfully ACKed'
             start_seq_num = rec_message['ack_num']
-            print 'start_seq_num updated to:',start_seq_num
-          ##final packet
           elif (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
-            print 'final packet',start_seq_num,'successfully ACKed'
+            ##final packet
             start_seq_num = rec_message['ack_num']
-            print 'final start_seq_num updated to:',start_seq_num
             goToFin = True
             break
           else:
+            #retransmit
             allSent = False
-            print 'this leads to retransmit'
+            totalRetransmit += 1
+            totalDuplicate += 1
             #retransmit
         
         except socket.timeout:
+          #timeouts and retransmit
           allSent = False
-          print 'retransmit due to timeout'
-          
+          totalRetransmit += 1
+
       ##--------------------------------------------------------------------
     
     message['seq_num'] = start_seq_num
     #3way fin
-    endConnection(log,starttime,s,message,receiver_host_ip,receiver_port)
+    endConnection(log,starttime,s,message,receiver_host_ip,receiver_port,totalData,totalSegment,totalDropped,totalRetransmit,totalDuplicate)
 
     
   except socket.error:
