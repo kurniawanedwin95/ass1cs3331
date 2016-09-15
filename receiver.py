@@ -47,11 +47,15 @@ def readData(f,s,expected_seq_num,dataBuffer,message,client):
       #Reads from buffer if data exists in buffer
       if(dataBuffer.get(message['seq_num']) == None):
         f.write(data)
+        ack_num = message['seq_num']+len(message['data'])
+        expected_seq_num = ack_num
       else:
-        f.write(dataBuffer.pop(message['seq_num'],None))
+        while (dataBuffer.get(expected_seq_num)!=None):
+          string = dataBuffer.pop(expected_seq_num,None)
+          f.write(string)
+          expected_seq_num += len(string)
+          ack_num = expected_seq_num
       
-      ack_num = message['seq_num']+len(message['data'])
-      expected_seq_num = ack_num
       print 'expected next seq num is:',ack_num
       value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':ack_num,'data':''}
       message = pickle.dumps(value)

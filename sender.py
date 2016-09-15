@@ -72,29 +72,33 @@ def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port):
   log.write(string)
   #-------------------------------------------------------------
   print 'FIN packet sent',value['seq_num'], value['ack_num']
-  message, client = s.recvfrom(1024) #reads SYN+ACK
-  message = pickle.loads(message)
-  if(message['FIN'] == True and message['ACK'] == True):
-    #log writing chunk--------------------------------------------
-    curtime = time.time()*1000
-    curtime = curtime-starttime
-    string = 'rcv\t'+str(curtime)+'\tFA\t'+str(message['seq_num'])+'\t'+str(len(message['data']))+'\t'+str(message['ack_num'])+'\n'
-    log.write(string)
-    #-------------------------------------------------------------
-    print 'FIN+ACK received'
-    value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':'','end_seq_num':0}
-    message = pickle.dumps(value)
-    s.sendto(message,(receiver_host_ip,receiver_port))
-    #log writing chunk--------------------------------------------
-    curtime = time.time()*1000
-    curtime = curtime-starttime
-    string = 'snd\t'+str(curtime)+'\tA\t'+str(value['seq_num'])+'\t'+str(len(value['data']))+'\t'+str(value['ack_num'])+'\n'
-    log.write(string)
-    #-------------------------------------------------------------
-    print 'ACK packet sent, terminating connection'
-    s.close()
-    f.close()
-    print 'Connection terminated'
+  while 1:
+    #empties the buffer until it finds the FIN ACK packet and quits
+    message, client = s.recvfrom(1024) #reads SYN+ACK
+    message = pickle.loads(message)
+    if(message['FIN'] == True and message['ACK'] == True):
+      #log writing chunk--------------------------------------------
+      curtime = time.time()*1000
+      curtime = curtime-starttime
+      string = 'rcv\t'+str(curtime)+'\tFA\t'+str(message['seq_num'])+'\t'+str(len(message['data']))+'\t'+str(message['ack_num'])+'\n'
+      log.write(string)
+      #-------------------------------------------------------------
+      print 'FIN+ACK received'
+      value = {'SYN':False,'ACK':True,'FIN':False,'seq_num':message['ack_num'],'ack_num':message['seq_num']+1,'data':'','end_seq_num':0}
+      message = pickle.dumps(value)
+      s.sendto(message,(receiver_host_ip,receiver_port))
+      #log writing chunk--------------------------------------------
+      curtime = time.time()*1000
+      curtime = curtime-starttime
+      string = 'snd\t'+str(curtime)+'\tA\t'+str(value['seq_num'])+'\t'+str(len(value['data']))+'\t'+str(value['ack_num'])+'\n'
+      log.write(string)
+      #-------------------------------------------------------------
+      print 'ACK packet sent, terminating connection'
+      s.close()
+      f.close()
+      sys.exit()
+      print 'Connection terminated'
+  
 
 
 if __name__ == '__main__':#might comment them first, then add as more are implemented
@@ -207,12 +211,12 @@ if __name__ == '__main__':#might comment them first, then add as more are implem
         
         print rec_message['ack_num']
         print start_seq_num+final_size
-        if (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
+        if (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] < end_seq_num and firstSent == True):
           print 'packet',start_seq_num,'successfully ACKed'
           start_seq_num = rec_message['ack_num']
           print 'start_seq_num updated to:',start_seq_num
         ##final packet
-        elif (rec_message['ACK'] == True and rec_message['ack_num'] == (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
+        elif (rec_message['ACK'] == True and rec_message['ack_num'] >= (start_seq_num+final_size) and rec_message['ack_num'] == end_seq_num and firstSent == True):
           print 'final packet',start_seq_num,'successfully ACKed'
           start_seq_num = rec_message['ack_num']
           print 'final start_seq_num updated to:',start_seq_num
