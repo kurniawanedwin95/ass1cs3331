@@ -1,5 +1,5 @@
 #!usr/bin/python
-# python sender.py localhost 20000 test1.txt 12 - command for easy debugging
+# python sender.py localhost 20000 test1.txt 12 0.7 0.1 50- command for easy debugging
 import socket
 import pickle
 import random
@@ -106,9 +106,8 @@ def endConnection(log,starttime,s,message,receiver_host_ip,receiver_port,totalDa
       s.close()
       f.close()
       log.close()
-      sys.exit()
       print 'Connection terminated'
-  
+      sys.exit()
 
 
 if __name__ == '__main__':#might comment them first, then add as more are implemented
